@@ -4,7 +4,7 @@ LIVECD_REV ?= 3.3.14a
 
 PREFIX ?= /usr
 SYSCONFDIR ?= /etc
-LIBDIR ?= $(PREFIX)/lib
+LIBDIR ?= $(PREFIX)/lib64
 DATADIR ?= $(PREFIX)/share
 BINDIR ?= $(PREFIX)/bin
 

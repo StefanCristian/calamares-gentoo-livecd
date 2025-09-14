@@ -2,7 +2,7 @@ PN ?= calamares-gentoo-livecd
 MY_PN ?= calamares
 LIVECD_REV ?= 3.3.14a
 
-PREFIX ?= /usr/local/
+PREFIX ?= /usr
 SYSCONFDIR ?= /etc
 LIBDIR ?= $(PREFIX)/lib
 DATADIR ?= $(PREFIX)/share

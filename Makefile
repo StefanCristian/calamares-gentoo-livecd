@@ -22,6 +22,12 @@ ARTWORK_SRCDIR = $(SRCDIR)/artwork
 GENTOO_ARTWORK_DIR ?= gentoo-artwork-0.2
 GENTOO_LIVECD_DIR ?= gentoo-livecd-2007.0
 
+# ebuild friendly
+ifdef WORKDIR
+GENTOO_ARTWORK_DIR := $(WORKDIR)/gentoo-artwork-0.2
+GENTOO_LIVECD_DIR := $(WORKDIR)/gentoo-livecd-2007.0
+endif
+
 .PHONY: all install clean help
 
 all: help

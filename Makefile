@@ -59,20 +59,6 @@ install:
 		fi \
 	done
 
-	install -d "$(CALAMARES_MODULESDIR)"
-	
-	if [ -d "$(MODULES_SRCDIR)/downloadstage3" ]; then \
-		cp -r "$(MODULES_SRCDIR)/downloadstage3" "$(CALAMARES_MODULESDIR)/"; \
-	fi
-	
-	if [ -d "$(MODULES_SRCDIR)/dracut_gentoo" ]; then \
-		cp -r "$(MODULES_SRCDIR)/dracut_gentoo" "$(CALAMARES_MODULESDIR)/"; \
-	fi
-	
-	if [ -d "$(MODULES_SRCDIR)/gentoopkg" ]; then \
-		cp -r "$(MODULES_SRCDIR)/gentoopkg" "$(CALAMARES_MODULESDIR)/"; \
-	fi
-
 	install -d "$(DESTDIR)$(BINDIR)"
 	install -m 755 "$(SRCDIR)/$(MY_PN)-pkexec" "$(DESTDIR)$(BINDIR)/$(MY_PN)-pkexec"
 
@@ -116,11 +102,6 @@ clean:
 	rm -f "$(CALAMARES_CONFDIR)/modules"/*.conf
 	-rmdir "$(CALAMARES_CONFDIR)/modules" 2>/dev/null || true
 	-rmdir "$(CALAMARES_CONFDIR)" 2>/dev/null || true
-	
-	rm -rf "$(CALAMARES_MODULESDIR)/downloadstage3"
-	rm -rf "$(CALAMARES_MODULESDIR)/dracut_gentoo"
-	rm -rf "$(CALAMARES_MODULESDIR)/gentoopkg"
-	-rmdir "$(CALAMARES_MODULESDIR)" 2>/dev/null || true
 	
 	rm -f "$(DESTDIR)$(BINDIR)/$(MY_PN)-pkexec"
 	

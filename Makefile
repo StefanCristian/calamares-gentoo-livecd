@@ -96,6 +96,15 @@ install:
 		install -m 644 "$(GENTOO_ARTWORK_DIR)/icons/gentoo/64x64/gentoo.png" "$(BRANDING_DIR)/gentoo.png"; \
 	fi
 	
+	if [ -f "$(ARTWORK_SRCDIR)/gentoo-livecd-2025.png" ]; then \
+        for i in 1 2 3 4 5 6 7 8; do \
+            install -m 644 "$(ARTWORK_SRCDIR)/gentoo-livecd-2025.png" "$(BRANDING_DIR)/$$i.png"; \
+        done; \
+        install -m 644 "$(ARTWORK_SRCDIR)/gentoo-livecd-2025.png" "$(BRANDING_DIR)/languages.png"; \
+    else \
+        echo "Warning: $(ARTWORK_SRCDIR)/gentoo-livecd-2025.png not found"; \
+    fi
+	
 
 clean:
 	rm -f "$(CALAMARES_CONFDIR)/settings.conf"

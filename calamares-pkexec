@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 main() {
-	sudo pkexec /usr/bin/calamares -d
+	pkexec /usr/bin/calamares -d
 }
 
 main

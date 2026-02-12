@@ -19,7 +19,7 @@ SRCDIR = .
 MODULES_SRCDIR = $(SRCDIR)/modules
 ARTWORK_SRCDIR = $(SRCDIR)/artwork
 
-GENTOO_ARTWORK_DIR ?= gentoo-artwork-0.2
+GENTOO_ARTWORK_DIR ?= $(ARTWORK_SRCDIR)/gentoo-artwork-0.2
 GENTOO_LIVECD_DIR ?= $(ARTWORK_SRCDIR)/gentoo-livecd-2007.0
 
 # ebuild friendly

@@ -1,0 +1,22 @@
+[Color Scheme]
+Name=Gentoo
+activeBackground=69,52,123
+activeBlend=122,90,218
+activeForeground=71,255,25
+activeTitleBtnBg=220,220,220
+alternateBackground=221,221,255
+background=236,230,238
+buttonBackground=209,205,221
+buttonForeground=0,0,0
+contrast=7
+foreground=0,0,0
+inactiveBackground=221,218,236
+inactiveBlend=221,221,255
+inactiveForeground=184,184,184
+inactiveTitleBtnBg=220,220,220
+linkColor=0,0,192
+selectBackground=122,90,218
+selectForeground=255,255,255
+visitedLinkColor=128,0,128
+windowBackground=255,255,255
+windowForeground=0,0,0

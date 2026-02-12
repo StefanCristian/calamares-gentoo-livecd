@@ -10,6 +10,7 @@ import re
 import sys
 import time
 import hashlib
+import multiprocessing
 
 def _progress_hook(count, block_size, total_size):
     _check_parent_alive()
@@ -195,6 +196,17 @@ def verify_stage3_with_digests(digests_path, stage3_path):
             all_valid = False
     return all_valid
 
+def write_makeopts(make_conf_path):
+    """Write MAKEOPTS to make.conf for parallel compilation.
+    Sets -j based on CPU count and -s for silent make to speed up compilation.
+    """
+    numcpu = multiprocessing.cpu_count()
+
+    with open(make_conf_path, 'a') as f:
+        f.write("\n# MAKEOPTS is set automatically by Calamares installer.\n")
+        f.write(f'MAKEOPTS="-j{numcpu} -s"\n')
+
+
 def run():
     if (libcalamares.globalstorage.contains("GENTOO_LIVECD") and 
         libcalamares.globalstorage.value("GENTOO_LIVECD") == "yes"):
@@ -205,6 +217,36 @@ def run():
             raise Exception("rootMountPoint not set in global storage")
         
         _safe_run(["rsync", "-aXA", "--hard-links", "--info=progress2", "/run/rootfsbase/", root_mount_point + "/"])
+        libcalamares.job.setprogress(50)
+
+        make_conf_path = os.path.join(root_mount_point, "etc/portage/make.conf")
+        write_makeopts(make_conf_path)
+        
+        package_use_dir = os.path.join(root_mount_point, "etc/portage/package.use")
+        os.makedirs(package_use_dir, exist_ok=True)
+        
+        partitions = libcalamares.globalstorage.value("partitions")
+        is_encrypted = False
+        if partitions:
+            for partition in partitions:
+                if partition.get("mountPoint") == "/" and "luksMapperName" in partition:
+                    is_encrypted = True
+                    break
+        
+        with open(os.path.join(package_use_dir, "00-livecd.package.use"), "w", encoding="utf-8") as f:
+            f.write(">=sys-kernel/installkernel-50 dracut\n")
+        
+        write_dracut_config(root_mount_point, "openrc")
+        ensure_grub_d_directory(root_mount_point)
+        
+        libcalamares.job.setprogress(70)
+        
+        gentoo_repo = os.path.join(root_mount_point, "var/db/repos/gentoo")
+        if not os.path.exists(gentoo_repo):
+            _safe_run(["rsync", "-L", "/etc/resolv.conf", os.path.join(root_mount_point, "etc/resolv.conf")])
+            _safe_run(["chroot", root_mount_point, "/bin/bash", "-c", "emerge-webrsync -q"])
+        
+        libcalamares.job.setprogress(90)
         
         return None
 
@@ -293,6 +335,10 @@ def run():
         os.remove(digests_path)
 
     shutil.copy2("/etc/resolv.conf", os.path.join(extract_path, "etc", "resolv.conf"))
+
+    make_conf_path = os.path.join(extract_path, "etc/portage/make.conf")
+    write_makeopts(make_conf_path)
+
     os.makedirs(os.path.join(extract_path, "etc/portage/binrepos.conf"), exist_ok=True)
     
     gentoobinhost_source = "/etc/portage/binrepos.conf/gentoobinhost.conf"
@@ -304,19 +350,8 @@ def run():
     else:
         print(f"Warning: {gentoobinhost_source} does not exist, skipping copy")
 
-    _safe_run(["chroot", extract_path, "getuto"])
-
     package_use_dir = os.path.join(extract_path, "etc/portage/package.use")
     os.makedirs(package_use_dir, exist_ok=True)
-    with open(os.path.join(package_use_dir, "00-livecd.package.use"), "w", encoding="utf-8") as f:
-        f.write(">=sys-kernel/installkernel-50 dracut\n")
-
-    _safe_run([
-        "chroot", extract_path, "/bin/bash", "-c",
-        'emerge-webrsync -q'
-    ])
-
-    is_systemd = "systemd" in stage_name_tar.lower()
     
     partitions = libcalamares.globalstorage.value("partitions")
     is_encrypted = False
@@ -326,7 +361,39 @@ def run():
                 is_encrypted = True
                 break
     
-    packages = "sys-boot/grub net-misc/networkmanager net-wireless/iwd sys-fs/cryptsetup"
+    with open(os.path.join(package_use_dir, "00-livecd.package.use"), "w", encoding="utf-8") as f:
+        f.write(">=sys-kernel/installkernel-50 dracut\n")
+
+    is_systemd = "systemd" in stage_name_tar.lower()
+    is_selinux = "selinux" in stage_name_tar.lower()
+
+    if is_encrypted and is_systemd:
+        with open(os.path.join(package_use_dir, "00-livecd.package.use"), "a", encoding="utf-8") as f:
+            f.write("sys-apps/systemd cryptsetup\n")
+    
+    if is_selinux:
+        with open(os.path.join(package_use_dir, "00-livecd.package.use"), "a", encoding="utf-8") as f:
+            f.write("net-wireless/wpa_supplicant dbus\n")
+    write_dracut_config(extract_path, stage_name_tar)
+    ensure_grub_d_directory(extract_path)
+
+    _safe_run(["chroot", extract_path, "getuto"])
+
+    _safe_run([
+        "chroot", extract_path, "/bin/bash", "-c",
+        'emerge-webrsync -q'
+    ])
+
+    if is_encrypted and is_systemd:
+        _safe_run([
+            "chroot", extract_path, "/bin/bash", "-c",
+            'EMERGE_DEFAULT_OPTS="${EMERGE_DEFAULT_OPTS} --getbinpkg" emerge -q1 sys-apps/systemd'
+        ])
+
+    packages = "sys-boot/grub net-misc/networkmanager net-wireless/iwd"
+
+    if is_encrypted and not is_systemd:
+        packages += " sys-fs/cryptsetup"
 
     _safe_run([
         "chroot", extract_path, "/bin/bash", "-c",
@@ -346,13 +413,6 @@ def run():
                     os.unlink(entry)
                 elif os.path.isdir(entry):
                     shutil.rmtree(entry)
-
-    gentoo_repo = os.path.join(extract_path, "var/db/repos/gentoo")
-    if os.path.exists(gentoo_repo):
-        shutil.rmtree(gentoo_repo)
-        print("Removed /var/db/repos/gentoo to free RAM")
-
-    write_dracut_config(extract_path, stage_name_tar)
 
     return None
 
@@ -391,9 +451,26 @@ def write_dracut_config(root_mount_point, stage_name_tar):
             if is_encrypted:
                 conf_file.write("# Add encryption support (OpenRC)\n")
                 conf_file.write('add_dracutmodules+=" crypt dm rootfs-block "\n')
+            else:
+                conf_file.write("# Omit encryption modules (no encryption)\n")
+                conf_file.write('omit_dracutmodules+=" crypt crypt-gpg crypt-loop "\n')
         else:
             conf_file.write("# Omit unnecessary modules (systemd system)\n")
             conf_file.write('omit_dracutmodules+=" plymouth "\n')
-    
+            
+            if is_encrypted:
+                conf_file.write("\n# Add encryption support (systemd)\n")
+                conf_file.write('add_dracutmodules+=" crypt dm rootfs-block "\n')
+            else:
+                conf_file.write("\n# Omit encryption modules (no encryption)\n")
+                conf_file.write('omit_dracutmodules+=" crypt crypt-gpg crypt-loop "\n')
+
     print(f"Pre-configured dracut at {dracut_conf_path} (systemd={is_systemd}, encrypted={is_encrypted})")
 
+def ensure_grub_d_directory(root_mount_point):
+    """Ensure /etc/default/grub.d directory exists for grubcfg module.
+    This directory is used when prefer_grub_d is enabled in grubcfg.conf,
+    allowing Calamares to write configuration that survives package updates.
+    """
+    _safe_run(["chroot", root_mount_point, "mkdir", "-p", "/etc/default/grub.d"])
+    print("Ensured /etc/default/grub.d directory exists in chroot")
